@@ -105,9 +105,9 @@ get_nfl_data_from_web <- function(years) {
   df_games <- data.frame()
   for (year in years) {
     ## Get the raw HTML data
-    tables <- readHTMLTable(stri_c("http://www.pro-football-reference.com/years/",
-                                   year, "/games.htm"), header = TRUE,
-                            stringsAsFactors = FALSE)
+    tables <- suppressWarnings(readHTMLTable(
+      stri_c("http://www.pro-football-reference.com/years/",
+             year, "/games.htm"), header = TRUE, stringsAsFactors = FALSE))
     tmp_games <- tables[["games"]] # ignoring games left
     tmp_games[tmp_games[ , 6] == "", 6] <- NA
     tmp_games$Date <- as.Date(paste(tmp_games$Date, year, sep = ", "),
@@ -117,29 +117,47 @@ get_nfl_data_from_web <- function(years) {
   names(df_games) <- c("Week", "Day", "Date", "Col4", "Winner/tie", "Col6",
                        "Loser/tie", "PtsW", "PtsL", "YdsW", "TOW", "YdsL",
                        "TOL")
-  df_games
+  get_regular_season_games(df_games)
 }
+#' Runs java garbage collection
+#'
+#' @import rJava
+#' @return NULL
+jgc <- function() {
+  rJava::.jcall("java/lang/System", method = "gc")
+}
+
 #' Returns dataframe of NFL game data from local Excel file.
 #'
 #' @param years integer vector of four digit years.
 #' @import stringi
+#' @import readxl
 #' @import XLConnect
 #' @export
 get_nfl_data_from_excel <- function(years) {
-  excel_file <- "data/NFL_Reference.xlsx"
+  options(java.parameters = "-Xmx4g")
+  excel_file <- "inst/extdata/NFL_Reference.xlsx"
   wb <- loadWorkbook(filename = excel_file)
   nfl <- data.frame()
   for (year in as.character(years)) {
+    ##jgc()
     ## Excel data
     if (existsSheet(wb, year)) {
-      tmp.nfl <- readWorksheetFromFile(file = excel_file, sheet = year,
-                                       check.names = FALSE)
-      tmp.nfl$Date <- as.Date(stri_c(year, stri_sub(tmp.nfl$Date, 5, 10)))
+      #tmp_nfl <- readWorksheetFromFile(file = excel_file, sheet = year,
+       #                                check.names = FALSE)
+      tmp_nfl <- suppressWarnings(
+        read_excel(path = excel_file, sheet = as.character(year),
+                   na = "", col_types = c(rep("text", 2), "date",
+                                          rep("text", 10))))
+      names(tmp_nfl) <- c("Week", "Day", "Date", "Col4", "Winner/tie", "Col6",
+                           "Loser/tie", "PtsW", "PtsL", "YdsW", "TOW", "YdsL",
+                           "TOL")
+      tmp_nfl$Date <- as.Date(stri_c(year, stri_sub(tmp_nfl$Date, 5, 10)))
     } else {
       warning(stri_c("Excel file: ", excel_file, " does not have sheet: '",
                      year, "'."))
     }
-    nfl <- rbind(nfl, tmp.nfl)
+    nfl <- rbind(nfl, tmp_nfl)
   }
   get_regular_season_games(nfl)
 }
