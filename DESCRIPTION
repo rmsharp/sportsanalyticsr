@@ -18,6 +18,7 @@ Imports:
     RPostgreSQL,
     stringi,
     readxl,
-    XML
+    XML,
+    XLConnect
 RoxygenNote: 5.0.1
 LazyData: TRUE

@@ -7,34 +7,25 @@
 #   Build and Reload Package:  'Cmd + Shift + B'
 #   Check Package:             'Cmd + Shift + E'
 #   Test Package:              'Cmd + Shift + T'
-
-
-## These are removed before the package is made the first time.
-## library(DBI)
-## library(stringi)
-## library(dplyr)
-## library(RPostgreSQL)
-## library(XML)
-
-
-## ## analyse.R
-## # load used libraries
-## library(dplyr)
-#
-## # Connect to database
-## nfl_db <- src_postgres("nfl")
-## nfl <- tbl(nfl_db, "scores")
-#
-#
-## # create a matrix with this columns
-## #1: DATE ID
-## #2: AWAY ID
-## #3: AWAY SCORE
-## #4: HOME ID
-## #5: HOME SCORE
-#
-# #the winner is always left unless there is an @ sign in clo6
-# #
+#' Team statistics of NFL teams for years 1966 through 2014.
+#'
+#' @format A dataframe with 10,653 rows and 13 variables:
+#' \describe{
+#'  \item{Week}{Week of NFL season}
+#'  \item{Day}{Day of week game was played}
+#'  \item{Date}{Date game was played}
+#'  \item{Col4}{Score type (boxscore)}
+#'  \item{Winner/tie}{Name of the team that won or tied}
+#'  \item{Col6}{Flag that indicates the winning team is the home team if it
+#'  is \@ and it is the away team if it is NA}
+#'  \item{Loser/tie}{Name of the team that lost or tied}
+#'  \item{PtsW}{Number of points for the winner}
+#'  \item{PtsL}{Number of points for the loser}
+#'  \item{YdsW}{Yards of offence for the winner}
+#'  \item{TOW}{Turn overs by winner}
+#'  \item{YdsL}{Yards of offence for loser}
+#'  \item{TOL}{Turn overs by loser}}
+"nfl"
 #' Takes values from a database connection string and returns a database
 #' connection object to the local NFL database.
 #'
@@ -62,7 +53,26 @@ connectDB <- function(host = "localhost", port = "5432",
                       password = pwd)
   conn
 }
-
+#' Checks to see if one or more postgreSQL tables exists in the PostgreSQL
+#' database returns logical vector with TRUE if a table exists and FALSE if
+#' it does not.
+#'
+#' @param conn database connection object
+#' @param table_names character vector
+#' @import RPostgreSQL
+#' @import stringi
+#' @export
+does_postgreSQL_table_exist <- function(conn, table_names) {
+  tables_exist <- logical(length(table_names))
+  for (i in seq_along(table_names)) {
+    sql_txt <- stri_c("SELECT 1 FROM pg_catalog.pg_class WHERE relkind = 'r'
+                    AND relname = '", table_names[i], "'
+                      AND pg_catalog.pg_table_is_visible(oid) LIMIT 1")
+    status <- dbFetch(dbSendQuery(conn, sql_txt))
+    tables_exist[i] <- length(status) == 1
+  }
+  tables_exist
+}
 #HarvestProFootballResults.R
 ### Needed R packages:  XML
 ###                     dplyr
@@ -79,7 +89,7 @@ connectDB <- function(host = "localhost", port = "5432",
 #' @export
 get_years <- function(start_year = 1966,
                       last_year = as.numeric(format(Sys.Date(), "%Y"))) {
-  startYear:lastYear
+  start_year:last_year
 }
 
 ## Load DB connector if not there
@@ -212,11 +222,11 @@ factor_to_numeric <- function(my_df, cols) {
 #' @param replace_2 character vector of the losing team results in an order
 #' that corresponds to the winning team result columns in replace_1
 #' @examples
-#' df_games <- data(df_games)
+#' data(nfl)
 #' home_away_cols <- c("Home", "Away", "PtsH", "PtsA", "YdsH", "YdsA", "TOH", "TOA")
-#'   df_games <-
-#' win_lose_2_home_away(df_games,
-#'                      take_first = df_games$Col6 == "@",
+#'   nfl <-
+#' win_lose_2_home_away(nfl,
+#'                      take_first = !is.na(nfl$Col6),
 #'                      new_col = home_away_cols,
 #'                      replace_1 = c("Loser/tie", "Winner/tie", "PtsL",
 #'                                    "PtsW", "YdsL", "YdsW", "TOL",
@@ -230,10 +240,10 @@ win_lose_2_home_away <- function(my_df, take_first, new_col, replace_1,
                                  replace_2) {
   for (i in seq_along(replace_1)) {
     my_df[new_col[i]] <- NA
-    my_df[new_col[i]][take_first] <-
-      my_df[replace_1[i]][take_first]
-    my_df[new_col[i]][!take_first] <-
-      my_df[replace_2[i]][!take_first]
+    my_df[take_first, new_col[i]] <-
+      my_df[take_first, replace_1[i]]
+    my_df[!take_first, new_col[i]] <-
+      my_df[!take_first, replace_2[i]]
   }
   my_df
 }
@@ -261,7 +271,7 @@ harvest_nfl_game_stats <- function(years) {
   df_games <-
     win_lose_2_home_away(df_games,
                          new_col = home_away_cols,
-                         take_first = df_games$Col6 == "@",
+                         take_first = !is.na(df_games$Col6),
                          replace_1 = c("Loser/tie", "Winner/tie", "PtsL",
                                        "PtsW", "YdsL", "YdsW", "TOL",
                                        "TOW"),
