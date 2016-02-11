@@ -2,7 +2,7 @@ Package: sportsanalyticsr
 Type: Package
 Title: Provides Tools to Compare NFL Teams Using Regular Season Summary Statistics
 Date: 2016-02-10
-Version: 0.1.4
+Version: 0.1.5
 Author: Dominik P.H. Kalisch (dkalisch@trinty.edu)
 Maintainer: R. Mark Sharp <rmsharp@me.com>
 Description: Provides functions to extract NFL data from http://www.pro-football-reference.com/years/ and to store and retrieve data from a local PostgesSQL database or Excel file.
@@ -14,10 +14,11 @@ Depends:
 Imports:
     DBI,
     dplyr,
+    readxl,
     rJava,
     RPostgreSQL,
+    shiny,
     stringi,
-    readxl,
     XML,
     XLConnect
 RoxygenNote: 5.0.1
