@@ -45,6 +45,7 @@
 #' @param pwd character string of the user's password
 #' @return A database connection object for the \code{nfl} local database.
 #' @import DBI
+#' @import RPostgreSQL
 #' @export
 connectDB <- function(host = "localhost", port = "5432",
                         dbname = "nfl", user = "msharp",
@@ -282,7 +283,7 @@ update_db_with_new <- function(nfl_db, df_games) {
   sql <- stri_c("select Date, Home
          from scores
          WHERE Date = (select max(Date) from scores);")
-  last.results <- fetch(dbSendQuery(nfl_db, sql))
+  last.results <- dbFetch(dbSendQuery(nfl_db, sql))
   df_games <- df_games %>%
     filter(Date > max(last.results$Date))
 

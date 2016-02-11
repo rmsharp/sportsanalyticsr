@@ -15,6 +15,7 @@ Imports:
     DBI,
     dplyr,
     rJava,
+    RPostgreSQL,
     stringi,
     readxl,
     XML
