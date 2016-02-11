@@ -22,9 +22,9 @@
 #'  \item{PtsW}{Number of points for the winner}
 #'  \item{PtsL}{Number of points for the loser}
 #'  \item{YdsW}{Yards of offence for the winner}
-#'  \item{TOW}{Turn overs by winner}
+#'  \item{TOW}{Turnovers by winner}
 #'  \item{YdsL}{Yards of offence for loser}
-#'  \item{TOL}{Turn overs by loser}}
+#'  \item{TOL}{Turnovers by loser}}
 "nfl"
 #' Takes values from a database connection string and returns a database
 #' connection object to the local NFL database.
