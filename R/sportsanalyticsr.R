@@ -279,15 +279,17 @@ harvest_nfl_game_stats <- function(years) {
                                        "PtsL", "YdsW", "YdsL", "TOW",
                                        "TOL"))
   ### Remove unnessesary columns
-  df_games[ , home_away_cols]
+  df_games[ , c("Week", home_away_cols)]
 }
 
-#' Returns NULL
+#' Update the postgreSQL database \code{nfl} with one or more seasons of team
+#' data within a dataframe
 #'
 #' @param nfl_db database connection object
 #' @param df_games dataframe with regular sesson NFL team results.
 #' @import DBI
 #' @import dplyr
+#' @export
 update_db_with_new <- function(nfl_db, df_games) {
   ## If run in update mode, get the last db entry and only add new data
   sql <- stri_c("select Date, Home
@@ -300,55 +302,90 @@ update_db_with_new <- function(nfl_db, df_games) {
   dbWriteTable(nfl_db, name = "scores", df_games, append = TRUE,
                row.names = FALSE)
 }
+#' Makes an incidence matrix using wins and losses found in the
+#' supplied dataframe.
+#'
+#' @param df dataframe of game statistics in Home Away format.
+#' @param w numeric vector of weights used in making the incidence matrix
+#' @return list with colley matrix and dataframe with results for colley matrix
+#' @export
+get_incidence_matrix <- function(df, w) {
+  ## Create a incidence matrix
+  ## Start with an empty matrix
+  A <- matrix(nrow = nlevels(df$Home), ncol = nlevels(df$Home), 0)
 
-## nfl <- get_nfl_data_from_excel(years)
-## nfl <- factor_to_numeric(df_games, c("Week", "PtsW", "PtsL", "YdsW",
-##                                           "YdsL", "TOW", "TOL"))
-#
-##   print("Recode data...")
-##   ## Recode data
-##   home_away_cols <- c("Home", "Away", "PtsH", "PtsA", "YdsH", "YdsA", "TOH",
-##                       "TOA")
-##   nfl <-
-##     win_lose_2_home_away(nfl,
-##                          new_col = home_away_cols,
-##                          take_first = nfl$Col6 == "@",
-##                          replace_1 = c("Loser/tie", "Winner/tie", "PtsL",
-##                                        "PtsW", "YdsL", "YdsW", "TOL",
-##                                        "TOW"),
-##                          replace_2 = c("Winner/tie", "Loser/tie", "PtsW",
-##                                        "PtsL", "YdsW", "YdsL", "TOW",
-##                                        "TOL"))
-##   #### Remove unnessesary columns
-##   nfl <- nfl[ , home_away_cols]
-#
-##   print("Write file to DB...")
-##   nfl_db <- connectDB(host = "localhost", port = "5432", dbname = "nfl",
-##                       user = "msharp", pwd = "nflpassword")
-##   ### Write data to db
-##   dbWriteTable(nfl_db, name = "scores", nfl, append = TRUE, row.names = FALSE)
-##   ## Disconnect from db
-##   dbDisconnect(nfl_db)
-## }
-#
-#
-## #loadData.R
-## # Load library
-## library(dplyr)
-#
-## # Open data
-## nfl_db <- src_postgres("nfl", host = "localhost", user = "dominik")
-## nfl <- tbl(nfl_db, "scores")
-#
-## ## Get data
-#
-## nfl.df <- nfl %>%
-##   filter(Date >= "2014-01-01",
-##          Date < "2015-01-01") %>%
-##   collect()
-#
-## nfl.years <- nfl %>%
-##   select(Date) %>%
-##   collect()
-#
-## nfl.years <- unique(year(nfl.years$Date))
+  ## Compare results of home and away team and set set 1 for the winner
+  ## where is row the home team and column the away team with the index number
+  ## equal to the factor of the variable.
+  for (i in 1:nrow(df)) {
+    # Get the position of the current team in the matrix
+    a <- as.numeric(df$Home[i])
+    b <- as.numeric(df$Away[i])
+
+    # Fill in the values
+    if (df$PtsH[i] > df$PtsA[i]) {
+      A[a, b] <- A[a, b] + 1 * w[i]
+    } else if (df$PtsH[i] < df$PtsA[i]) {
+      A[b, a] <- A[b, a] + 1 * w[i]
+    } else {
+      A[a, b] <- A[a, b] + 0.5 * w[i]
+      A[b, a] <- A[b, a] + 0.5 * w[i]
+    }
+  }
+  B <- A
+  # Get the position of the current team in the matrix
+  a <- as.numeric(df$Home)
+  b <- as.numeric(df$Away)
+
+  # Fill in the values
+  home <- df$PtsH > df$PtsA
+  away <- df$PtsH < df$PtsA
+  tie <- !(home | away)
+  B[a[home], b[home]] <- B[a[home], b[home]] + 1 * w[home]
+  B[b[away], a[away]] <- B[b[away], a[away]] + 1 * w[away]
+  B[a[tie], b[tie]] <- B[a[tie], b[tie]] + 0.5 * w[tie]
+  B[b[tie], a[tie]] <- B[b[tie], a[tie]] + 0.5 * w[tie]
+  if (all(A == B)) {
+    print("A and B are identical")
+  }
+  A
+}
+#' Uses the dataframe of NFL game statistics, a weighting value,
+
+#' @param df dataframe with game statistics
+#' @param gamma do not know what this is yet
+#' @param week do not know what this is used for
+#' @import fBasics
+#' @import dplyr
+#' @export
+get_colley <- function(df, gamma = 1, week = 2) {
+  # Prepare data for the calculations
+
+  suppressWarnings(df$Week[is.na(as.numeric(df$Week))] <- 18)
+
+  ## Set team names to factors for sorting in matrix
+  df$Home <- as.factor(df$Home)
+  df$Away <- as.factor(df$Away)
+
+  ## Define a weight
+  w <- pmax((Sign(as.numeric(df$Week) - (week - 0.5)) * gamma), 1)
+
+  A <- get_incidence_matrix(df, w)
+
+  # Colley Calculations
+  ## Create colley matrix
+  colley.m <- -(A + t(A)) + diag(rowSums(A) + colSums(A) + 2)
+
+  ## Create result data frame
+  colley.r <-
+    suppressMessages(
+      data_frame(
+        TeamID = levels(sort(df$Home)), # Name of the team
+        Wins = rowSums(A), # How many wins
+        Loss = colSums(A), # How many loss
+        WinP = rowSums(A) / (Wins + Loss), # win-loss ratio
+        Colley = solve(colley.m, (0.5 * (rowSums(A) - colSums(A)) + 1)) # solved colley equation
+        ))
+
+  list(colly.r = colley.r, colley.m = colley.m)
+}
