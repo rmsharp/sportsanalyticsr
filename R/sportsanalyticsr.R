@@ -172,6 +172,19 @@ get_nfl_data_from_excel <- function(years) {
   }
   get_regular_season_games(nfl)
 }
+#' Returns dataframe of NFL game data from postgreSQL database table.
+#'
+#' @param conn database connection object
+#' @import RPostgreSQL
+#' @export
+get_nfl_data_from_postgreSQL <- function(conn) {
+  if (does_postgreSQL_table_exist(conn, "scores")) {
+    nfl_df <- dbFetch(dbSendQuery(conn,"select * from scores"))
+  } else {
+    stop("The postgreSQL database table 'scores' was not found.")
+  }
+  nfl_df
+}
 #' Returns dataframe of regular season games by removing extra headings,
 #' playoff games, the by week, and any blank lines.
 #'
@@ -279,7 +292,7 @@ harvest_nfl_game_stats <- function(years) {
                                        "PtsL", "YdsW", "YdsL", "TOW",
                                        "TOL"))
   ### Remove unnessesary columns
-  df_games[ , c("Week", home_away_cols)]
+  df_games[ , c("Week", "Date", home_away_cols)]
 }
 
 #' Update the postgreSQL database \code{nfl} with one or more seasons of team
