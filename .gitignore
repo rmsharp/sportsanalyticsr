@@ -8,3 +8,8 @@ man/*
 data/.MySCMServerInfo
 .MySCMServerInfo
 R/.MySCMServerinfo
+vignettes/*.html
+vignettes/*.Rpres
+vignettes/*.md
+vignettes/*.tex
+vignettes/*.aux

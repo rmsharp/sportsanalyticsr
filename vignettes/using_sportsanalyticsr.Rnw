@@ -1,0 +1,418 @@
+%\documentclass[12pt,a4paper,article]{memoir} % for a short document
+\documentclass[10pt]{amsart}
+\usepackage{amssymb,amsmath}
+\usepackage{hyperref} % URLs etc
+%\usepackage{enumitem}
+\usepackage{pdflscape}
+\usepackage{enumerate}
+\usepackage{colortbl}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{underscore}
+\usepackage{titling}
+\usepackage{mathbbol}
+\usepackage{listings}
+
+\newcommand{\subtitle}[1]{%
+  \posttitle{%
+    \par\end{center}
+    \begin{center}\large#1\end{center}
+    \vskip0.5em}%
+}
+\usepackage{soul}
+\makeatletter
+\DeclareRobustCommand*\myul{%
+    \def\SOUL@everyspace{\underline{\space}\kern\z@}
+    \def\SOUL@everytoken{%
+     \setbox0=\hbox{\the\SOUL@token}%
+     \ifdim\dp0>\z@
+        \the\SOUL@token
+     \else
+        \underline{\the\SOUL@token}%
+     \fi}
+\SOUL@}
+\makeatother
+% from Louis01012009 (sharpBibtex.bib)
+\newcommand{\estse}[2]{${#1}_{(#2)}$}
+\newcommand{\cithree}[3]{$_{{#1}\ }{#2}_{\ {#3}}$}
+\newcommand{\cifive}[5]{$_{_{#1\ }{#2}\ \!}{#3}_{\ #4_{\ #5}}$}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\filename}[1]{\texttt{#1}}
+\newcommand{\rpackage}[1]{\textit{#1}}
+\usepackage[top = 1.5in, bottom = 1.5in, left = 1in, right = 0.75in]{geometry}
+\graphicspath{ {../inst/img/} }
+
+<<setup_timer, echo = FALSE, include = FALSE>>=
+## should be in a "source" file
+start_time <- proc.time()
+make_knitr_header <- function(title_str = "", sub_title_str = "",
+                              author_str = "Primate Records Database Team") {
+  cat(stri_c(
+    "\\title{", title_str, "}\n",
+  "\\subtitle{", sub_title_str, "}\n",
+  "\\author{", author_str, "}\n",
+  "\\date{\\today}\n",
+  "\\begin{document}\n",
+  "\\maketitle\n"))
+}
+
+@
+<<load_packages, echo = FALSE, include = FALSE>>=
+library(rmsutilityr, quietly = TRUE)
+library(stringi, quietly = TRUE)
+library(sportsanalyticsr, quietly = TRUE)
+
+@
+<<set_options, echo = FALSE, include = FALSE>>=
+options(continue = " ")
+options(width = 60)
+opts_chunk$set(autodep = TRUE)
+opts_chunk$set(concordance = TRUE)
+opts_chunk$set(keep.source = TRUE, eps = FALSE)
+opts_chunk$set(echo = FALSE, cache = FALSE, include = FALSE, tidy = FALSE)
+
+@
+<<make-header, include = TRUE, results = 'asis'>>=
+make_knitr_header(title_str = "R Development: Functions and Package Development",
+                  sub_title_str = "Using RStudio",
+                  author_str = "R. Mark Sharp, Ph.D.")
+
+@
+
+\section{Let's Make a Package}
+\begin{enumerate}
+\item Fork SportsAnalytics from \href{https://github.com/dkalisch/SportsAnalytics}
+{github.com/dkalisch/SportsAnalytics} to your personal GitHub account using
+instructions from \href{https://guides.github.com/activities/forking/}
+{Forking Projects - GitHub Guides}.
+\item Clone your version of the project to your desktop again using
+instructions from
+\href{https://guides.github.com/activities/forking/}{Forking Projects -
+GitHub Guides}.
+
+\item At the \emph{File} menu within RStudio select \emph{New project\dots} and
+then select \emph{New Directory}.
+
+\includegraphics[scale=0.5]{project-in-new-directory}
+
+\item Name the project \emph{sportsanalyticsr} and then browse for the parent directory
+of the directory you just created with the GitHub clone of  SportsAnalytics
+and select \emph{Create Project}\footnote{You can use
+\href{https://support.rstudio.com/hc/en-us/articles/200486488-Developing-Packages-with-RStudio}
+{Developing Packages with RStudio} to help you with the package development.}
+
+\includegraphics[scale=0.5]{put-package-proj-in-parallel-directory}
+
+\item Add a \emph{tests} folder to the package structure.
+This will allow you to automatically run any unit tests you develop to test your code
+using the \emph{testthat} package.
+
+\includegraphics[scale=0.5]{add-tests-folder}
+
+\end{enumerate}
+
+
+\section{Function Development}
+We are going to replace the following code with a simple function
+\begin{lstlisting}[language=R]
+  ### Set correct variable types
+  df.games$Week <- as.numeric(as.character(df.games$Week))
+  df.games$PtsW <- as.numeric(as.character(df.games$PtsW))
+  df.games$PtsL <- as.numeric(as.character(df.games$PtsL))
+  df.games$YdsW <- as.numeric(as.character(df.games$YdsW))
+  df.games$TOW <- as.numeric(as.character(df.games$TOW))
+  df.games$YdsL <- as.numeric(as.character(df.games$YdsL))
+  df.games$TOL <- as.numeric(as.character(df.games$TOL))
+
+\end{lstlisting}
+Everything in R is an object and functions are no different.
+Every function has three parts: a name, a body of code, and a set of arguments.
+Functions are made using the \emph{function} function.
+To do this, call \emph{function()} and follow it with a pair of braces, {}:
+\begin{lstlisting}[language=R]
+my_function <- function() {}
+\end{lstlisting}
+
+Functions are used when you want to
+	\begin{itemize}
+	\item add clarity to your code,
+	\item only write something once and use it more than once
+	\end{itemize}
+The first thing you need to do when writing a function is to recognize a pattern
+in code so that you recognize the elements that stay the same and those that change.
+
+In the code above we see that the function calls \emph{as.numeric(as.character(some\_vector))}
+is repeated and what I just wrote as \emph{some\_vector} has to be either \emph{df.games\$Week,
+df.games\$PtsW, df.games\$PtsL, df.games\$YdsW, df.games\$TOW, df.games\$YdsL, }
+or \emph{df.games\$TOL}.
+
+Let's write our first version of the code. (Multiple versions of a function are often written
+before you find one that works the way you want, which is simply and versatilely.
+\begin{lstlisting}[language=R]
+factor_to_numeric <- function(some_vector) {
+  as.numeric(as.character(some_vector))
+}
+\end{lstlisting}
+The listing immediately below shows how it is used.
+It is not much shorter, but it is more clear what is being done,
+which is a very good reason to write a function.
+\begin{lstlisting}[language=R]
+  ### Set correct variable types
+  df.games$Week <- factor_to_numeric(df.games$Week)
+  df.games$PtsW <- factor_to_numeric(df.games$PtsW)
+  df.games$PtsL <- factor_to_numeric(df.games$PtsL)
+  df.games$YdsW <- factor_to_numeric(df.games$YdsW)
+  df.games$TOW <- factor_to_numeric(df.games$TOW)
+  df.games$YdsL <- factor_to_numeric(df.games$YdsL)
+  df.games$TOL <- factor_to_numeric(df.games$TOL)
+\end{lstlisting}
+
+This use of a function does not help me avoid a simple type, but often made
+mistake. Notice, I failed to paste the correct column name on the right side of
+the third assignment statement.
+Use of highly repetitive code is asking for this type of error because
+we tend to not pay close enough attention to repetitive units.
+This is another place where the rule not to repeat yourself pays off.
+
+
+\begin{lstlisting}[language=R]
+  df.games$Week <- factor_to_numeric(df.games$Week)
+  df.games$PtsW <- factor_to_numeric(df.games$PtsW)
+  df.games$PtsL <- factor_to_numeric(df.games$PtsW)
+  ...
+\end{lstlisting}
+
+We also recognize that all of these vectors are in the same object.
+That can be put to good use by adding another parameter that will accept
+a list of columns.
+
+\begin{lstlisting}[language=R]
+factor_to_numeric <- function(my_df, cols) {
+  for (col in cols) {
+    my_df[col] <- as.numeric(as.character(my_df[col]))
+  }
+  my_df
+}
+\end{lstlisting}
+
+You may notice that I have avoided the use of \emph{df} by prepending \emph{my\_} to it.
+I did that out of a habit of avoiding using common functions as variable names.
+In this case it does not really matter because I am not going to use the density function of the F distribution
+later on within this function and objects defined inside a function do not exist outside that function.
+Common functions such as \emph{sum()} and \emph{mean()} are tempting but dangerous variable names.
+
+This function provides a little more compact code that is still easy to understand when used.
+\begin{lstlisting}[language=R]
+df_games <- factor_to_numeric(df_games, c("Week", "PtsW", "PtsL", "YdsW",
+                                          "YdsL", "TOW", "TOL"))
+\end{lstlisting}
+
+\subsection{Implicit loops instead of explicit loops}
+One of the problems this code has to solve is the transformation
+of the data from Winner/Loser format to Home/Away format.
+The original code handles most of this work is a standard \emph{for loop}.
+However, almost all base R objects and operators are vectors and handle vector operations
+automatically. So instead of the following --
+\begin{lstlisting}[language=R]
+  ### Switch team names and results according to game location
+  for (j in 1:nrow(df.games)){
+    if (df.games$Col6[j] == "@"){
+      df.games$Home[j] <- df.games$`Loser/tie`[j]
+      df.games$PtsH[j] <- df.games$PtsL[j]
+      df.games$Away[j] <- df.games$`Winner/tie`[j]
+      df.games$PtsA[j] <- df.games$PtsW[j]
+      df.games$YdsH[j] <- df.games$YdsL[j]
+      df.games$TOH[j] <- df.games$TOL[j]
+      df.games$YdsA[j] <- df.games$YdsW[j]
+      df.games$TOA[j] <- df.games$TOW[j]
+    } else {
+      df.games$Home[j] <- df.games$`Winner/tie`[j]
+      df.games$PtsH[j] <- df.games$PtsW[j]
+      df.games$Away[j] <- df.games$`Loser/tie`[j]
+      df.games$PtsA[j] <- df.games$PtsL[j]
+      df.games$YdsH[j] <- df.games$YdsW[j]
+      df.games$TOH[j] <- df.games$TOW[j]
+      df.games$YdsA[j] <- df.games$YdsL[j]
+      df.games$TOA[j] <- df.games$TOL[j]
+    }
+  }
+
+\end{lstlisting}
+we can have this:
+\begin{lstlisting}[language=R]
+      at_sign <- df.games$Col6 == "@"
+      df.games$Home[at_sign] <- df.games$`Loser/tie`[at_sign]
+      df.games$PtsH[at_sign] <- df.games$PtsL[at_sign]
+      df.games$Away[at_sign] <- df.games$`Winner/tie`[at_sign]
+      df.games$PtsA[at_sign] <- df.games$PtsW[at_sign]
+      df.games$YdsH[at_sign] <- df.games$YdsL[at_sign]
+      df.games$TOH[at_sign] <- df.games$TOL[at_sign]
+      df.games$YdsA[at_sign] <- df.games$YdsW[at_sign]
+      df.games$TOA[at_sign] <- df.games$TOW[at_sign]
+	  df.games$Home[!at_sign] <- df.games$`Winner/tie`[!at_sign]
+      df.games$PtsH[!at_sign] <- df.games$PtsW[!at_sign]
+      df.games$Away[!at_sign] <- df.games$`Loser/tie`[!at_sign]
+      df.games$PtsA[!at_sign] <- df.games$PtsL[!at_sign]
+      df.games$YdsH[!at_sign] <- df.games$YdsW[!at_sign]
+      df.games$TOH[!at_sign] <- df.games$TOW[!at_sign]
+      df.games$YdsA[!at_sign] <- df.games$YdsL[!at_sign]
+      df.games$TOA[!at_sign] <- df.games$TOL[!at_sign]
+\end{lstlisting}
+
+As you see the \emph{for loop} is entirely gone.
+If the data structures are very large, this can be orders of magnitude faster.
+
+Though this does not have much redundancy with regard to data, it
+does have a lot of redundancy structurally. Each line is nearly the
+same as the previous one.
+This is easy to write but is is not fun to write and has
+all of the same weaknesses as other repetitive code.
+
+This same section of code, that is converting Win//Lose to Home//Away
+structure has to also create new columns in the dataframe to hold
+the transformed data.
+
+\begin{lstlisting}[language=R]
+  ### Add new variables to code away vs. home
+  df.games$Home <- NA
+  df.games$Away <- NA
+  df.games$PtsH <- NA
+  df.games$PtsA <- NA
+  df.games$YdsH <- NA
+  df.games$TOH  <- NA
+  df.games$YdsA <- NA
+  df.games$TOA  <- NA
+\end{lstlisting}
+And then we have to get rid of the columns we are replacing.
+
+\begin{lstlisting}[language=R]
+  ### Remove unessesary columns
+  df.games$Col4 <- NULL
+  df.games$Col6 <- NULL
+  df.games$Day <- NULL
+  df.games$`Winner/tie` <- NULL
+  df.games$`Loser/tie` <- NULL
+  df.games$PtsW <- NULL
+  df.games$PtsL <- NULL
+  df.games$YdsW <- NULL
+  df.games$YdsL <- NULL
+  df.games$TOW <- NULL
+  df.games$TOL <- NULL
+\end{lstlisting}
+
+Let's organize the problem a bit.
+\begin{itemize}
+\item There is one dataframe
+\item There are two sets of eight complementary columns being replaced
+\item There are eight new columns that get the selected data.
+\item There is one column, \emph{Col6}, that is inspected to select which of the complementary
+columns is used to assign a value to a new column.
+\end{itemize}
+
+Here is a first attempt.
+
+\begin{lstlisting}[language=R]
+win_lose_2_home_away <- function(my_df, cond_vec, new_col, replace_1,
+                                   replace_2) {
+  for (i in seq_along(replace_1)) {
+    my_df[new_col[i]] <- NA
+    my_df[new_col[i]][my_df[cond_vec] == "@"] <-
+      my_df[replace_1[i]][my_df[cond_vec] == "@"]
+    my_df[new_col[i]][my_df[cond_vec] != "@"] <-
+      my_df[replace_2[i]][my_df[cond_vec] != "@"]
+  }
+  my_df
+}
+\end{lstlisting}
+
+The first parameter (\emph{my\_df}) is our dataframe that has all of the data,
+the second parameter (\emph{cond\_vec}) is the column used to decide which assignment to make,
+the third parameter (\emph{new\_col}) is a character vector with the names of the
+new dataframe columns,
+the fourth and fifth parameters (\emph{replace\_1} and \emph{replace\_2}) receive
+character vectors with the complementary column names being replaced.
+
+The \emph{for loop} steps through each column using \emph{seq\_along(replace\_1)}
+while inside the loop the same thing is done to each set of three
+corresponding columns.
+
+The function is invoked below.
+
+\begin{lstlisting}[language=R]
+  home_away_cols <- c("Home", "Away", "PtsH", "PtsA", "YdsH", "YdsA",
+                      "TOH", "TOA")
+  df_games <-
+    win_lose_2_home_away(df_games,
+                         cond_vec = "Col6",
+                         new_col = home_away_cols,
+                         replace_1 = c("Loser/tie", "Winner/tie", "PtsL",
+                                       "PtsW", "YdsL", "YdsW", "TOL",
+                                       "TOW"),
+                         replace_2 = c("Winner/tie", "Loser/tie", "PtsW",
+                                       "PtsL", "YdsW", "YdsL", "TOW",
+                                       "TOL"))
+\end{lstlisting}
+We can remove the unneeded column by saying give me a version of the dataframe
+that only has the new columns.
+
+\begin{lstlisting}[language=R]
+  ### Keep columns we want
+  df_games <- df_games[ , home_away_cols]
+\end{lstlisting}
+
+Before we leave this function lets think more about generalizing the code a bit.
+Our function has inside knowledge about the structure of \emph{df\_games}
+when there is no benefit to it.
+In addition, what if we wanted to do the same thing based on a different condition?
+In the original \emph{HarvestProFootballResults.R} file, the condition used was as
+follows.
+\begin{lstlisting}[language=R]
+    if(!is.na(nfl$Col6[j])){
+\end{lstlisting}
+
+Let's take away that special knowledge and generalize the code a bit.
+\begin{lstlisting}[language=R]
+win_lose_2_home_away <- function(my_df, take_first, new_col, replace_1,
+                                   replace_2) {
+  for (i in seq_along(replace_1)) {
+    my_df[new_col[i]] <- NA
+    my_df[new_col[i]][take_first] <-
+      my_df[replace_1[i]][take_first]
+    my_df[new_col[i]][!take_first] <-
+      my_df[replace_2[i]][!take_first]
+  }
+  my_df
+}
+\end{lstlisting}
+
+This version can be invoked just as easily.
+\begin{lstlisting}[language=R]
+  home_away_cols <- c("Home", "Away", "PtsH", "PtsA", "YdsH", "YdsA",
+                      "TOH", "TOA")
+  df_games <-
+    win_lose_2_home_away(df_games,
+                         take_first = df_games$Col6 == "@",
+                         new_col = home_away_cols,
+                         replace_1 = c("Loser/tie", "Winner/tie", "PtsL",
+                                       "PtsW", "YdsL", "YdsW", "TOL",
+                                       "TOW"),
+                         replace_2 = c("Winner/tie", "Loser/tie", "PtsW",
+                                       "PtsL", "YdsW", "YdsL", "TOW",
+                                       "TOL"))
+\end{lstlisting}
+This also provides a slight mnemonic advantage.
+
+<<calculate_elapsed_time, echo = FALSE, include = FALSE>>=
+elapsed_time <- get_elapsed_time_str(start_time)
+
+@
+\clearpage
+The current date and time is \Sexpr{Sys.time()}. The processing time for
+this document was \Sexpr{elapsed_time}
+
+<<session-info, echo = TRUE, include = TRUE>>=
+sessionInfo()
+
+@
+
+\end{document}
