@@ -73,11 +73,6 @@ does_postgreSQL_table_exist <- function(conn, table_names) {
   }
   tables_exist
 }
-#HarvestProFootballResults.R
-### Needed R packages:  XML
-###                     dplyr
-###
-### Needed R files: connectDB.R
 #' Takes start_year and last_year (defaults to current year) and returns
 #' an integer vector representing a set of consecutive years.
 #'
@@ -91,19 +86,10 @@ get_years <- function(start_year = 1966,
                       last_year = as.numeric(format(Sys.Date(), "%Y"))) {
   start_year:last_year
 }
-
-## Load DB connector if not there
-## if(!exists("nfl_db")){
-##   source("src/connectDB.R")
-## }
-#
-## ## Build vector of years to parse
-## if (initialSetup){
-##   years <- c(startYear:currentYear)
-## } else {
-##   years <- c(currentYear)
-## }
-#' Takes an integer vector representing consecutive years and returns in a
+#' Returns NFL regular season team statistics from the web.
+#'
+#' Takes an integer vector representing consecutive years and data found
+#' at \url{"http://www.pro-football-reference.com} and returns in a
 #' dataframe the NFL team statistics for the regular season games in those
 #' years.
 #'
@@ -111,6 +97,9 @@ get_years <- function(start_year = 1966,
 #' @return dataframe with NFL team data for all years
 #' @import stringi
 #' @import XML
+#' @seealso \code{get_nfl_data_from_postgreSQL} and
+#' \code{get_nfl_data_from_excel} for alternative functions returning NFL
+#' team statistics.
 #' @export
 get_nfl_data_from_web <- function(years) {
   df_games <- data.frame()
@@ -137,13 +126,20 @@ get_nfl_data_from_web <- function(years) {
 jgc <- function() {
   rJava::.jcall("java/lang/System", method = "gc")
 }
-
-#' Returns dataframe of NFL game data from local Excel file.
+#' Returns NFL regular season team statistics from Excel file.
+#'
+#' Takes an integer vector representing consecutive years and returns a
+#' dataframe with NFL team statictics from each year found in the Excel file.
 #'
 #' @param years integer vector of four digit years.
+#' @return dataframe of NFL game data from local Excel file.
+#'
 #' @import stringi
 #' @import readxl
 #' @import XLConnect
+#' @seealso \code{get_nfl_data_from_postgreSQL} and
+#' \code{get_nfl_data_from_web} for alternative functions returning NFL
+#' team statistics.
 #' @export
 get_nfl_data_from_excel <- function(years) {
   options(java.parameters = "-Xmx4g")
@@ -172,10 +168,19 @@ get_nfl_data_from_excel <- function(years) {
   }
   get_regular_season_games(nfl)
 }
-#' Returns dataframe of NFL game data from postgreSQL database table.
+#' Get all the scores from the postgreSQL \emph{nfl} database.
+#'
+#' Takes a database connection object to the \emph{nfl} database, selects all of
+#' the data found in the \code{scores} table, and returns a
+#' dataframe with NFL team statictics from each year.
+#'
+#' @return dataframe of NFL game data from postgreSQL database table.
 #'
 #' @param conn database connection object
 #' @import RPostgreSQL
+#' @seealso \code{get_nfl_data_from_web} and
+#' \code{get_nfl_data_from_excel} for alternative functions returning NFL
+#' team statistics.
 #' @export
 get_nfl_data_from_postgreSQL <- function(conn) {
   if (does_postgreSQL_table_exist(conn, "scores")) {
